@@ -1,4 +1,4 @@
-require 'rails_helper'
+require 'swagger_helper'
 
 describe 'POST /bookmarks' do
 
@@ -67,6 +67,53 @@ describe 'POST /bookmarks' do
         # response contain error message
         json = JSON.parse(response.body).deep_symbolize_keys
         expect(json[:message]).to eq('Invalid User')
+        end
+    end
+
+    path '/bookmarks' do
+        post 'Creates a bookmark' do
+          tags 'Bookmarks'
+          consumes 'application/json'
+          produces "application/json"
+          parameter name: :user, in: :body, schema: {
+            type: :object,
+            properties: {
+                bookmark: {
+                    url: { type: :string },
+                    title: { type: :string }
+                }
+            },
+            required: [ 'url', 'title' ]
+          }
+    
+          response '201', 'user created' do
+            post '/bookmarks', params: {
+                bookmark: {
+                    url: 'https://rubyyagi.com',
+                    title: 'RubyYagi blog'
+                }
+            }, headers: { 'X-Username': user.username, 'X-Token': user.authentication_token }
+
+            # response should have HTTP Status 201 Created
+            expect(response.status).to eq(201)
+
+            json = JSON.parse(response.body).deep_symbolize_keys
+            
+            # check the value of the returned response hash
+            expect(json[:url]).to eq('https://rubyyagi.com')
+            expect(json[:title]).to eq('RubyYagi blog')
+
+            # 1 new bookmark record is created
+            expect(Bookmark.count).to eq(1)
+
+            # Optionally, you can check the latest record data
+            expect(Bookmark.last.title).to eq('RubyYagi blog')
+          end
+    
+          response '422', 'invalid request' do
+            let(:user) { { username: 'foo' } }
+            run_test!
+          end
         end
     end
 end
